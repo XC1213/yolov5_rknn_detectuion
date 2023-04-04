@@ -1,11 +1,8 @@
 package com.rockchip.gpadc.demo.yolo;
 //import static org.opencv.videoio.Videoio.CAP_PROP_POS_FRAMES;
 
-import static org.opencv.core.CvType.CV_8UC3;
-
 import android.graphics.RectF;
 import android.os.Bundle;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,12 +13,13 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Core;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
-import org.opencv.videoio.Videoio;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,10 +29,9 @@ public class InferenceWrapper extends AppCompatActivity{
    //  TextView textview;
    // ImageView img_after;
 
-    private String Model_name = "epoch120_quant.rknn";
+    private final String  Model_name = "epoch120_quant.rknn";
     // private String fileDir = getCacheDir().getAbsolutePath();
-    private String platform = "rk3568";
-    private String fileDir;
+    private final String platform = "rk3568";
     public static final int Input_size = 320;
     public static final int Input_chanmel = 3;
 //    public static int camera_width = 640;
@@ -55,7 +52,7 @@ public class InferenceWrapper extends AppCompatActivity{
     public float[] boxes;
     public int flag = 0;
     public long time_out = 0;
-    ArrayList recog = new ArrayList<>();
+    ArrayList<Object> recog = new ArrayList<>();
     //ArrayList  = new ArrayList<>();
     StringBuffer stringBuffer=new StringBuffer();
 
@@ -63,12 +60,12 @@ public class InferenceWrapper extends AppCompatActivity{
 
     // Used to load the 'helloworld' library on application startup.
     static {
+
         System.loadLibrary("rknnrt");
         System.loadLibrary("rga");
+        System.loadLibrary("test");
         System.loadLibrary("rknn4j");
         // System.loadLibrary("opencv_java3");
-        System.loadLibrary("mainso");
-        // System.loadLibrary("main");
         System.loadLibrary("RKinf");
     }
 
@@ -78,7 +75,7 @@ public class InferenceWrapper extends AppCompatActivity{
         setContentView(R.layout.activity_main);
         //InputStream Model = getResources().openRawResource(R.raw.epoch120_quant);
 
-        fileDir = getCacheDir().getAbsolutePath();
+        String fileDir = getCacheDir().getAbsolutePath();
         String Model = fileDir + "/" + "epoch120_quant.rknn";  //  Model_name;
         //String Model = "fail:///res/raw/epoch120.rknn";
         OpenCVLoader.initDebug();
@@ -115,11 +112,27 @@ public class InferenceWrapper extends AppCompatActivity{
             if (!cap.read(frame))
                 break;
         //double frameCount = cap.get(Videoio.CAP_PROP_FRAME_COUNT);
-            // Mat mask = new Mat(720,1000, CV_8UC3, new Scalar(255));
-            // frame.copyTo(frame, mask);
+
+            //定义mask的区域边界点
+            List<Point> list = new ArrayList<>();
+            list.add(new Point(1000, 0));
+            list.add(new Point(1000, 720));
+            list.add(new Point(1280, 0));
+            list.add(new Point(1280, 720));
+
+            List<MatOfPoint> maskArea = new ArrayList<>();
+            MatOfPoint maskPoints = new MatOfPoint();
+            maskPoints.fromList(list);
+            maskArea.add(maskPoints);
+            Mat mask;
+            mask = new Mat(new Size(frame.width(), frame.height()), CvType.CV_8UC3, new Scalar(255, 255, 255));//定义成白色
+            Imgproc.fillPoly(mask, maskArea, new Scalar(0, 0, 0));//填充多边形,生成mask,定义成黑色
+            Mat img = new Mat(new Size(frame.width(), frame.height()), CvType.CV_8UC3, new Scalar(0, 0, 0));
+            frame.copyTo(img, mask);
+
             Mat src= new Mat();
             Mat src2 = new Mat();
-            Imgproc.cvtColor(frame,src,Imgproc.COLOR_BGR2RGBA);
+            Imgproc.cvtColor(img,src,Imgproc.COLOR_BGR2RGBA);
             // Imgproc.resize(src,src2,new Size(720,1280));
 
 //            Imgproc.resize(frame,src,new Size(320,320));
@@ -171,7 +184,7 @@ public class InferenceWrapper extends AppCompatActivity{
 
             for (int i = 0; i < count; ++i){
                 RectF rect = new RectF();
-                rect.left = boxes[i*4+0];
+                rect.left = boxes[i * 4];
                 stringBuffer.append(rect.left);
                 stringBuffer.append(" ");
 
